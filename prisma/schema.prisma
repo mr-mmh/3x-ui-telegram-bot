@@ -1,0 +1,117 @@
+generator client {
+    provider = "prisma-client"
+    output   = "../generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model User {
+    id         Int     @id @default(autoincrement())
+    telegramId BigInt  @unique
+    firstName  String?
+    username   String?
+    balance    Int     @default(0)
+
+    payments      Payment[]
+    transactions  WalletTransaction[]
+    orders        Order[]
+    subscriptions Subscription[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("users")
+}
+
+enum PaymentStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum TransactionType {
+    DEPOSIT
+    PURCHASE
+    REFUND
+}
+
+model Payment {
+    id Int @id @default(autoincrement())
+
+    userId Int
+    user   User @relation(fields: [userId], references: [id])
+
+    amount         Int
+    receiptImageId String
+    status         PaymentStatus @default(PENDING)
+
+    // { "action": "BUY_PLAN", "planId": 5 }
+    metadata Json?
+
+    createdAt   DateTime  @default(now())
+    processedAt DateTime?
+
+    transaction WalletTransaction?
+
+    @@map("payments")
+}
+
+model WalletTransaction {
+    id Int @id @default(autoincrement())
+
+    userId Int
+    user   User @relation(fields: [userId], references: [id])
+
+    amount Int
+    type   TransactionType // DEPOSIT (واریز), PURCHASE (خرید), REFUND (برگشت)
+
+    description String?
+    paymentId   Int?     @unique
+    payment     Payment? @relation(fields: [paymentId], references: [id])
+    createdAt   DateTime @default(now())
+
+    @@map("wallet_transactions")
+}
+
+model Plan {
+    id            Int            @id @default(autoincrement())
+    name          String
+    price         Int
+    capacityGB    Int
+    periodDay     Int
+    userLimit     Int            @default(0)
+    description   String?
+    orders        Order[]
+    isActive      Boolean        @default(true)
+    subscriptions Subscription[]
+
+    @@map("plans")
+}
+
+model Order {
+    id        Int      @id @default(autoincrement())
+    userId    Int
+    user      User     @relation(fields: [userId], references: [id])
+    planId    Int
+    plan      Plan     @relation(fields: [planId], references: [id])
+    amount    Int
+    createdAt DateTime @default(now())
+
+    @@map("orders")
+}
+
+model Subscription {
+    id          Int    @id @default(autoincrement())
+    planId      Int
+    plan        Plan   @relation(fields: [planId], references: [id])
+    userId      Int
+    user        User   @relation(fields: [userId], references: [id])
+    subId       String
+    connection  String
+    clientEmail String @unique
+    clientUUID  String
+
+    @@map("subscriptions")
+}
